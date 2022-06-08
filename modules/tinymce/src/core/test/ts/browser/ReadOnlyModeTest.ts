@@ -249,14 +249,33 @@ describe('browser.tinymce.core.ReadOnlyModeTest', () => {
     UiFinder.sNotExists(SugarBody.body(), '.tox-menu');
   });
 
-  it('TINY-6248: getAnchorHrefOpt should return an Optional of the href of the closest anchor tag', () => {
-    const editor = hook.editor();
-    editor.setContent('<p><a href="https://tiny.cloud">external link</a></p>');
-    assertHrefOpt(editor, 'a', Optional.some('https://tiny.cloud'));
-    editor.setContent('<p><a>external link with no href</a></p>');
-    assertHrefOpt(editor, 'a', Optional.none());
-    editor.setContent('<p><a href="https://tiny.cloud"><img src="">nested image </img>inside anchor</a></p>');
-    assertHrefOpt(editor, 'img', Optional.some('https://tiny.cloud'));
+  describe('TINY-6248: getAnchorHrefOpt should return an Optional of the href of the closest anchor tag', () => {
+    it('without anchor', () => {
+      const editor = hook.editor();
+      editor.setContent('<p><a href="https://tiny.cloud">external link</a></p>');
+      assertHrefOpt(editor, 'a', Optional.some('https://tiny.cloud'));
+      editor.setContent('<p><a>external link with no href</a></p>');
+      assertHrefOpt(editor, 'a', Optional.none());
+      editor.setContent('<p><a href="https://tiny.cloud"><img src="">nested image </img>inside anchor</a></p>');
+      assertHrefOpt(editor, 'img', Optional.some('https://tiny.cloud'));
+    });
+    describe('with anchor', () => {
+      it('without semicolon', () => {
+        const editor = hook.editor();
+        editor.setContent('<p><a href="#myanchor">external link</a></p>');
+        assertHrefOpt(editor, 'a', Optional.some('#myanchor'));
+      })
+      it('with one semicolon', () => {
+        const editor = hook.editor();
+        editor.setContent('<p><a href="#myanchor;somekey=somevalue">external link anchor href with semicolon</a></p>');
+        assertHrefOpt(editor, 'a', Optional.some('#myanchor;somekey=somevalue'));
+      })
+      it('with multiple semicolons', () => {
+        const editor = hook.editor();
+        editor.setContent('<p><a href="#myanchor;somekey=somevalue;somekey2=somevalue2">external link anchor href with semicolon</a></p>');
+        assertHrefOpt(editor, 'a', Optional.some('#myanchor;somekey=somevalue;somekey2=somevalue2'));
+      })
+    });
   });
 
   it('TINY-6248: processReadonlyEvents should scroll to bookmark with id', () => {
@@ -289,6 +308,40 @@ describe('browser.tinymce.core.ReadOnlyModeTest', () => {
     Mouse.click(anchor);
     const newPos = Scroll.get(doc).top;
     assert.notEqual(newPos, yPos, 'assert yPos has changed i.e. has scrolled');
+  });
+
+  describe('processReadonlyEvents should scroll to anchor href', () => {
+    it('with one semicolon', () => {
+      const editor = hook.editor();
+      setMode(editor, 'design');
+      editor.resetContent();
+      setMode(editor, 'readonly');
+      editor.setContent('<p><a href="#someBookmark;somekey=somevalue">internal bookmark</a></p><div style="padding-top: 2000px;"></div><p><a id="someBookmark;somekey=somevalue"></a></p>');
+
+      const body = TinyDom.body(editor);
+      const doc = TinyDom.document(editor);
+      const yPos = Scroll.get(doc).top;
+      const anchor = UiFinder.findIn(body, 'a[href="#someBookmark;somekey=somevalue"]').getOrDie();
+      Mouse.click(anchor);
+      const newPos = Scroll.get(doc).top;
+      assert.notEqual(newPos, yPos, 'assert yPos has changed i.e. has scrolled');
+    });
+
+    it('with multiple semicolons', () => {
+      const editor = hook.editor();
+      setMode(editor, 'design');
+      editor.resetContent();
+      setMode(editor, 'readonly');
+      editor.setContent('<p><a href="#someBookmark;somekey=somevalue;somekey2=somevalue2">internal bookmark</a></p><div style="padding-top: 2000px;"></div><p><a id="someBookmark;somekey=somevalue;somekey2=somevalue2"></a></p>');
+
+      const body = TinyDom.body(editor);
+      const doc = TinyDom.document(editor);
+      const yPos = Scroll.get(doc).top;
+      const anchor = UiFinder.findIn(body, 'a[href="#someBookmark;somekey=somevalue;somekey2=somevalue2"]').getOrDie();
+      Mouse.click(anchor);
+      const newPos = Scroll.get(doc).top;
+      assert.notEqual(newPos, yPos, 'assert yPos has changed i.e. has scrolled');
+    });
   });
 
   it('TINY-6800: even in readonly mode copy event should be dispatched', () => {
